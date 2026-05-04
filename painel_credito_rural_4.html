@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crédito Rural · BCB/SICOR</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:    #f5f2ec;
+  --s1:    #edeae1;
+  --s2:    #e4e0d5;
+  --s3:    #faf8f4;
+  --bor:   #d4cfc4;
+  --bor2:  #c5bfb2;
+  --forest:  #2d5a3d;
+  --moss:    #4a7c5f;
+  --sage:    #7aab89;
+  --sage2:   #a8c9b4;
+  --earth:   #8b6234;
+  --amber:   #c4820a;
+  --straw:   #d4a843;
+  --rust:    #b34a2a;
+  --sky:     #3a7ca5;
+  --dusk:    #6b4f7a;
+  --txt:   #2a2520;
+  --mid:   #5a5248;
+  --mut:   #9a9088;
+  --mono:  'DM Mono', monospace;
+  --serif: 'DM Serif Display', serif;
+  --sans:  'DM Sans', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--sans)}
+
+/* HEADER */
+.hdr{height:56px;display:flex;align-items:stretch;background:var(--forest);border-bottom:3px solid var(--moss);flex-shrink:0;}
+.hdr-brand{padding:0 24px;display:flex;align-items:center;gap:12px;border-right:1px solid rgba(255,255,255,.12);}
+.brand-leaf{font-size:22px;line-height:1}
+.brand-text .t1{font-family:var(--serif);font-size:16px;color:#e8f0e0;letter-spacing:.01em}
+.brand-text .t2{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.45);letter-spacing:.1em;text-transform:uppercase}
+.hdr-tabs{display:flex;align-items:stretch;flex:1;overflow-x:auto}
+.tab{padding:0 18px;display:flex;align-items:center;font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:rgba(255,255,255,.45);border-right:1px solid rgba(255,255,255,.08);cursor:pointer;transition:all .15s;white-space:nowrap;position:relative;text-transform:uppercase;}
+.tab:hover{color:rgba(255,255,255,.75);background:rgba(255,255,255,.05)}
+.tab.active{color:#c8e6b0;background:rgba(255,255,255,.08)}
+.tab.active::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:#7aab89}
+
+/* PERIOD RANGE BAR */
+.period-bar{
+  display:flex;align-items:center;gap:14px;
+  padding:0 20px;border-left:1px solid rgba(255,255,255,.12);
+  min-width:340px;
+}
+.period-bar label{font-family:var(--mono);font-size:8px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;white-space:nowrap}
+.period-display{font-family:var(--mono);font-size:11px;color:#c8e6b0;white-space:nowrap;min-width:80px;text-align:center}
+.range-wrap{position:relative;flex:1;height:20px;display:flex;align-items:center}
+.range-track{position:absolute;left:0;right:0;height:3px;background:rgba(255,255,255,.15);border-radius:2px}
+.range-fill{position:absolute;height:3px;background:var(--sage);border-radius:2px}
+.range-input{position:absolute;width:100%;-webkit-appearance:none;appearance:none;background:transparent;pointer-events:none;height:20px;}
+.range-input::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--sage);cursor:pointer;pointer-events:all;border:2px solid var(--forest);transition:transform .1s;}
+.range-input::-webkit-slider-thumb:hover{transform:scale(1.2)}
+.range-input::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--sage);cursor:pointer;pointer-events:all;border:2px solid var(--forest);}
+#rStart{z-index:3}
+#rEnd{z-index:4}
+
+/* BODY */
+.wrap{display:flex;height:calc(100vh - 56px)}
+
+/* SIDEBAR */
+.side{width:214px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--bor);display:flex;flex-direction:column;overflow-y:auto;}
+.side-sec{padding:14px 14px 12px;border-bottom:1px solid var(--bor)}
+.side-title{font-family:var(--mono);font-size:8px;letter-spacing:.16em;color:var(--moss);text-transform:uppercase;margin-bottom:10px;}
+.kpi-grid{display:flex;flex-direction:column;gap:2px}
+.kpi-row2{display:flex;justify-content:space-between;align-items:baseline;padding:8px 10px;background:var(--s3);border-radius:4px;border-left:3px solid var(--kc,var(--sage));}
+.kpi-row2 .kl{font-size:9px;color:var(--mut);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em}
+.kpi-row2 .kv{font-family:var(--serif);font-size:18px;color:var(--txt)}
+.kpi-row2 .ku{font-family:var(--mono);font-size:8px;color:var(--mut)}
+
+/* Fonte chips */
+.fonte-chip{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:4px;cursor:pointer;transition:all .1s;border:1px solid var(--bor);margin-bottom:2px;}
+.fonte-chip:hover{opacity:.85}
+.fonte-chip .bar{width:3px;height:14px;border-radius:2px;flex-shrink:0}
+.fonte-chip .fname{font-size:10px;color:var(--mid);flex:1}
+.fonte-chip .fval{font-family:var(--mono);font-size:9px;color:var(--mut)}
+.fonte-chip:not(.on){opacity:.45}
+
+/* MAIN */
+.main{flex:1;overflow:auto;display:flex;flex-direction:column}
+.panels{display:grid;gap:10px;padding:12px;flex:1;align-content:start}
+.mode-fontes,.mode-lca,.mode-clima{grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto}
+.mode-cat{grid-template-columns:1fr 1fr;grid-template-rows:auto auto}
+.mode-regiao{grid-template-columns:1fr 1fr;grid-template-rows:auto auto}
+.mode-microdados{grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto}
+.mode-mapa{grid-template-columns:1.4fr 1fr;grid-template-rows:auto}
+
+.panel{background:var(--s3);border:1px solid var(--bor);border-radius:6px;display:flex;flex-direction:column;overflow:hidden;min-height:220px;}
+.panel.span2{grid-column:span 2}
+.panel.span3{grid-column:span 3}
+.panel.spanR{grid-row:span 2}
+.panel.tall{min-height:400px}
+.panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid var(--bor);flex-shrink:0}
+.panel-title{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--mid)}
+.panel-tag{font-family:var(--mono);font-size:8px;color:var(--mut);background:var(--s1);padding:2px 6px;border-radius:3px;border:1px solid var(--bor)}
+.cw{flex:1;padding:10px;position:relative;min-height:160px}
+.cw canvas{position:absolute;inset:10px}
+
+/* API panel */
+.api-panel{padding:12px 14px;flex:1;overflow:auto}
+.api-loading{display:flex;align-items:center;justify-content:center;height:100%;gap:8px;font-family:var(--mono);font-size:10px;color:var(--mut)}
+.spin{width:16px;height:16px;border:2px solid var(--bor);border-top-color:var(--moss);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.api-table{width:100%;border-collapse:collapse;font-size:10px}
+.api-table th{font-family:var(--mono);font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);padding:5px 8px;text-align:left;border-bottom:2px solid var(--bor);position:sticky;top:0;background:var(--s3)}
+.api-table td{padding:5px 8px;border-bottom:1px solid var(--bor);color:var(--mid);vertical-align:middle}
+.api-table tr:hover td{background:var(--s1)}
+.api-table .val-cell{font-family:var(--mono);font-size:9px;text-align:right;color:var(--txt)}
+.mini-bar{display:inline-block;height:6px;background:var(--moss);border-radius:2px;vertical-align:middle;margin-right:4px;min-width:2px}
+.api-err{font-family:var(--mono);font-size:10px;color:var(--rust);padding:12px}
+.api-tabs{display:flex;gap:0;border-bottom:1px solid var(--bor);flex-shrink:0}
+.api-tab{padding:7px 14px;font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;color:var(--mut);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .1s}
+.api-tab:hover{color:var(--mid)}
+.api-tab.active{color:var(--moss);border-bottom-color:var(--moss)}
+
+/* MAP */
+.map-container{padding:8px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#brazilMap{width:100%;max-height:520px}
+.map-legend{display:flex;align-items:center;gap:6px;margin-top:8px;justify-content:center;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:8px;color:var(--mut)}
+.leg-box{width:12px;height:12px;border-radius:2px}
+.state-path{cursor:pointer;transition:opacity .1s;stroke:#faf8f4;stroke-width:0.5}
+.state-path:hover{opacity:.75;stroke-width:1.5}
+.map-tooltip{position:fixed;background:var(--forest);color:#e8f0e0;padding:6px 10px;border-radius:4px;font-family:var(--mono);font-size:10px;pointer-events:none;z-index:100;display:none;line-height:1.5}
+
+/* STATUS */
+.status{padding:6px 16px;background:var(--s1);border-top:1px solid var(--bor);font-family:var(--mono);font-size:8px;color:var(--mut);flex-shrink:0;display:flex;justify-content:space-between}
+.status a{color:var(--moss);text-decoration:none}
+.status a:hover{text-decoration:underline}
+
+/* Gender pill */
+.gender-pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:9px;font-family:var(--mono)}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-brand">
+    <span class="brand-leaf">🌿</span>
+    <div class="brand-text">
+      <div class="t1">Crédito Rural</div>
+      <div class="t2">BCB · SICOR · MDCR</div>
+    </div>
+  </div>
+  <div class="hdr-tabs">
+    <div class="tab active" data-mode="fontes" onclick="setMode('fontes')">Fontes</div>
+    <div class="tab" data-mode="cat" onclick="setMode('cat')">Porte</div>
+    <div class="tab" data-mode="lca" onclick="setMode('lca')">LCA</div>
+    <div class="tab" data-mode="clima" onclick="setMode('clima')">Clima/ABC</div>
+    <div class="tab" data-mode="regiao" onclick="setMode('regiao')">Região</div>
+    <div class="tab" data-mode="mapa" onclick="setMode('mapa')">Mapa</div>
+    <div class="tab" data-mode="microdados" onclick="setMode('microdados')">Microdados API</div>
+  </div>
+  <!-- PERIOD RANGE -->
+  <div class="period-bar">
+    <label>Período</label>
+    <div class="range-wrap" id="rangeWrap">
+      <div class="range-track"></div>
+      <div class="range-fill" id="rangeFill"></div>
+      <input type="range" class="range-input" id="rStart" min="0" max="12" value="0">
+      <input type="range" class="range-input" id="rEnd" min="0" max="12" value="12">
+    </div>
+    <div class="period-display" id="periodDisplay">2013 – 2025</div>
+  </div>
+</div>
+
+<div class="map-tooltip" id="mapTip"></div>
+
+<div class="wrap">
+  <div class="side">
+    <div class="side-sec">
+      <div class="side-title">Período selecionado</div>
+      <div class="kpi-grid">
+        <div class="kpi-row2" style="--kc:var(--forest)">
+          <div>
+            <div class="kl">Total acumulado</div>
+            <div><span class="kv" id="kTot">—</span> <span class="ku">R$ bi</span></div>
+          </div>
+        </div>
+        <div class="kpi-row2" style="--kc:var(--earth)">
+          <div>
+            <div class="kl">LCA Livre (período)</div>
+            <div><span class="kv" id="kLCA">—</span> <span class="ku">R$ bi</span></div>
+          </div>
+        </div>
+        <div class="kpi-row2" style="--kc:var(--sky)">
+          <div>
+            <div class="kl">Custeio / Invest.</div>
+            <div><span class="kv" id="kCus">—</span> <span class="ku">/ <span id="kInv">—</span></span></div>
+          </div>
+        </div>
+        <div class="kpi-row2" style="--kc:var(--moss)">
+          <div>
+            <div class="kl">ABC/RenovAgro</div>
+            <div><span class="kv" id="kABC">—</span> <span class="ku">R$ bi</span></div>
+          </div>
+        </div>
+        <div class="kpi-row2" style="--kc:var(--dusk)">
+          <div>
+            <div class="kl">LCA % do total</div>
+            <div><span class="kv" id="kLCApct">—</span> <span class="ku">%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="side-sec" id="fonteChips"></div>
+    <div class="side-sec" style="font-family:var(--mono);font-size:8px;color:var(--mut);line-height:1.6;flex:1">
+      <div class="side-title">Sobre</div>
+      Dados: BCB/SICOR · MDCR<br>
+      Atualização: Abr 2026<br><br>
+      <a href="https://dadosabertos.bcb.gov.br/dataset/matrizdadoscreditorural" target="_blank" style="color:var(--moss)">↗ Dados abertos BCB</a><br><br>
+      <span style="color:var(--rust)">⬤</span> Microdados API busca dados em tempo real do BCB.
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="panels" id="panels"></div>
+    <div class="status" id="stxt">
+      <span>BCB/SICOR · Crédito Rural</span>
+      <span id="stxt2"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════ */
+const D = {"anos": [2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025], "serie_LCA_Livre": {"2013": 0.0, "2014": 0.08, "2015": 5.17, "2016": 6.94, "2017": 7.05, "2018": 8.17, "2019": 32.88, "2020": 29.84, "2021": 46.59, "2022": 84.71, "2023": 152.23, "2024": 104.01, "2025": 97.36}, "serie_LCA_Controlada": {"2013": 0.0, "2014": 0.0, "2015": 0.0, "2016": 4.94, "2017": 11.98, "2018": 19.09, "2019": 0.7, "2020": 0.0, "2021": 0.0, "2022": 0.0, "2023": 8.12, "2024": 5.16, "2025": 30.73}, "serie_Obrigatórios": {"2013": 58.85, "2014": 63.97, "2015": 59.98, "2016": 40.53, "2017": 52.96, "2018": 58.04, "2019": 41.32, "2020": 52.02, "2021": 71.9, "2022": 77.37, "2023": 81.89, "2024": 65.45, "2025": 64.6}, "serie_Poupança_Rural": {"2013": 45.13, "2014": 62.6, "2015": 48.26, "2016": 33.87, "2017": 53.92, "2018": 46.85, "2019": 50.55, "2020": 71.29, "2021": 105.41, "2022": 74.79, "2023": 55.11, "2024": 68.83, "2025": 62.93}, "serie_BNDES_FAT": {"2013": 16.05, "2014": 17.57, "2015": 17.05, "2016": 12.37, "2017": 14.75, "2018": 16.44, "2019": 16.98, "2020": 18.37, "2021": 19.21, "2022": 23.27, "2023": 28.67, "2024": 35.68, "2025": 26.9}, "serie_Fundos_Constitucionais": {"2013": 9.97, "2014": 10.43, "2015": 10.77, "2016": 7.1, "2017": 13.87, "2018": 17.29, "2019": 16.21, "2020": 17.47, "2021": 25.42, "2022": 31.15, "2023": 32.17, "2024": 33.8, "2025": 42.15}, "serie_Outros": {"2013": 9.38, "2014": 9.78, "2015": 12.92, "2016": 11.87, "2017": 12.5, "2018": 15.01, "2019": 20.31, "2020": 18.01, "2021": 26.47, "2022": 70.68, "2023": 48.23, "2024": 66.89, "2025": 34.26}, "total_ano": {"2013": 139.39, "2014": 164.43, "2015": 154.15, "2016": 117.62, "2017": 167.02, "2018": 180.89, "2019": 178.95, "2020": 207.0, "2021": 295.0, "2022": 361.97, "2023": 406.41, "2024": 379.82, "2025": 358.92}, "mod_Custeio": {"2013": 73.66, "2014": 87.17, "2015": 90.69, "2016": 71.31, "2017": 95.57, "2018": 97.88, "2019": 100.21, "2020": 113.86, "2021": 156.76, "2022": 207.4, "2023": 225.05, "2024": 208.73, "2025": 191.18}, "mod_Investimento": {"2013": 45.74, "2014": 52.79, "2015": 40.12, "2016": 26.19, "2017": 37.74, "2018": 45.96, "2019": 46.06, "2020": 60.18, "2021": 91.32, "2022": 100.28, "2023": 101.86, "2024": 105.19, "2025": 90.69}, "mod_Comercializacao": {"2013": 19.99, "2014": 24.47, "2015": 23.33, "2016": 16.4, "2017": 27.35, "2018": 29.65, "2019": 22.84, "2020": 21.84, "2021": 32.39, "2022": 32.44, "2023": 51.41, "2024": 43.47, "2025": 48.83}, "regioes": ["SUL", "NORTE", "SUDESTE", "NORDESTE", "CENTRO-OESTE"], "reg_SUL": {"2013": 51.91, "2014": 61.06, "2015": 59.27, "2016": 46.16, "2017": 61.74, "2018": 63.77, "2019": 61.15, "2020": 70.3, "2021": 95.34, "2022": 116.48, "2023": 125.13, "2024": 118.17, "2025": 113.69}, "reg_NORTE": {"2013": 5.86, "2014": 8.25, "2015": 7.23, "2016": 4.55, "2017": 7.97, "2018": 9.72, "2019": 11.11, "2020": 14.11, "2021": 22.72, "2022": 28.11, "2023": 31.93, "2024": 29.25, "2025": 27.38}, "reg_SUDESTE": {"2013": 39.45, "2014": 44.88, "2015": 41.12, "2016": 32.63, "2017": 42.53, "2018": 46.07, "2019": 44.43, "2020": 49.54, "2021": 68.83, "2022": 81.89, "2023": 92.87, "2024": 94.06, "2025": 95.72}, "reg_NORDESTE": {"2013": 11.9, "2014": 13.77, "2015": 12.09, "2016": 7.6, "2017": 13.25, "2018": 14.97, "2019": 15.28, "2020": 18.23, "2021": 25.75, "2022": 36.72, "2023": 44.19, "2024": 45.89, "2025": 38.74}, "reg_CENTRO_OESTE": {"2013": 30.26, "2014": 36.47, "2015": 34.44, "2016": 26.69, "2017": 41.52, "2018": 46.36, "2019": 46.97, "2020": 54.82, "2021": 82.37, "2022": 98.78, "2023": 112.3, "2024": 92.45, "2025": 83.39}, "uf_2023": {"AC": 1.14, "AL": 1.37, "AM": 0.38, "AP": 0.05, "BA": 18.06, "CE": 2.29, "DF": 0.44, "ES": 6.41, "GO": 40.37, "MA": 10.87, "MG": 50.45, "MS": 24.91, "MT": 46.58, "PA": 9.56, "PB": 1.4, "PE": 2.85, "PI": 4.78, "PR": 51.22, "RJ": 0.75, "RN": 0.76, "RO": 8.29, "RR": 0.89, "RS": 53.06, "SC": 20.85, "SE": 1.81, "SP": 35.25, "TO": 11.62}, "topif_2013": {"BCO DO BRASIL S.A.": 68.19, "BCO BRADESCO S.A.": 14.11, "BCO SANTANDER (BRASIL) S.A.": 5.63, "BCO ITAÚ BBA S.A.": 5.4, "BCO DO NORDESTE DO BRASIL S.A.": 5.22, "KIRTON BANK": 4.25, "BCO RABOBANK INTL BRASIL S.A.": 2.5, "ITAÚ UNIBANCO S.A.": 2.46, "BCO SAFRA S.A.": 2.14, "CAIXA ECONOMICA FEDERAL": 2.03}, "topif_2014": {"BCO DO BRASIL S.A.": 79.76, "BCO BRADESCO S.A.": 17.95, "ITAÚ UNIBANCO S.A.": 7.84, "BCO SANTANDER (BRASIL) S.A.": 6.56, "BCO DO NORDESTE DO BRASIL S.A.": 5.16, "CAIXA ECONOMICA FEDERAL": 4.87, "KIRTON BANK": 3.91, "BCO DA AMAZONIA S.A.": 3.11, "BCO RABOBANK INTL BRASIL S.A.": 2.89, "BCO DO ESTADO DO RS S.A.": 2.65}, "topif_2015": {"BCO DO BRASIL S.A.": 69.81, "BCO BRADESCO S.A.": 12.23, "ITAÚ UNIBANCO S.A.": 10.2, "CAIXA ECONOMICA FEDERAL": 6.64, "BCO DO NORDESTE DO BRASIL S.A.": 5.58, "BCO SANTANDER (BRASIL) S.A.": 5.45, "KIRTON BANK": 4.58, "BCO DA AMAZONIA S.A.": 2.87, "BCO RABOBANK INTL BRASIL S.A.": 2.74, "BD REGIONAL DO EXTREMO SUL": 2.1}, "topif_2016": {"BCO DO BRASIL S.A.": 45.88, "BCO BRADESCO S.A.": 10.33, "ITAÚ UNIBANCO S.A.": 7.38, "BCO SANTANDER (BRASIL) S.A.": 6.89, "CAIXA ECONOMICA FEDERAL": 5.4, "BCO DO NORDESTE DO BRASIL S.A.": 3.29, "BCO RABOBANK INTL BRASIL S.A.": 2.72, "BCO SAFRA S.A.": 2.32, "KIRTON BANK": 2.1, "CC CREDICITRUS": 1.98}, "topif_2017": {"BCO DO BRASIL S.A.": 77.94, "BCO BRADESCO S.A.": 11.91, "BCO SANTANDER (BRASIL) S.A.": 10.74, "ITAÚ UNIBANCO S.A.": 8.67, "CAIXA ECONOMICA FEDERAL": 5.98, "BCO DO NORDESTE DO BRASIL S.A.": 5.5, "BCO SAFRA S.A.": 3.57, "BCO RABOBANK INTL BRASIL S.A.": 2.9, "BCO DA AMAZONIA S.A.": 2.34, "BCO COOPERATIVO SICREDI S.A.": 1.93}, "topif_2018": {"BCO DO BRASIL S.A.": 82.38, "BCO BRADESCO S.A.": 13.84, "ITAÚ UNIBANCO S.A.": 8.88, "BCO SANTANDER (BRASIL) S.A.": 8.64, "BCO DO NORDESTE DO BRASIL S.A.": 6.83, "CAIXA ECONOMICA FEDERAL": 6.44, "BCO DA AMAZONIA S.A.": 3.13, "BCO RABOBANK INTL BRASIL S.A.": 3.06, "BCO SAFRA S.A.": 3.01, "BCO COOPERATIVO SICREDI S.A.": 2.73}, "topif_2019": {"BCO DO BRASIL S.A.": 75.95, "BCO BRADESCO S.A.": 12.13, "ITAÚ UNIBANCO S.A.": 10.2, "BCO SANTANDER (BRASIL) S.A.": 9.2, "BCO DO NORDESTE DO BRASIL S.A.": 7.49, "CAIXA ECONOMICA FEDERAL": 4.49, "BCO DA AMAZONIA S.A.": 4.44, "BCO SAFRA S.A.": 2.84, "BCO COOPERATIVO SICREDI S.A.": 2.43, "BANCO JOHN DEERE S.A.": 2.26}, "topif_2020": {"BCO DO BRASIL S.A.": 86.63, "BCO BRADESCO S.A.": 14.14, "ITAÚ UNIBANCO S.A.": 11.87, "BCO SANTANDER (BRASIL) S.A.": 10.11, "BCO DO NORDESTE DO BRASIL S.A.": 8.41, "CAIXA ECONOMICA FEDERAL": 7.79, "BCO DA AMAZONIA S.A.": 5.29, "BCO COOPERATIVO SICREDI S.A.": 3.01, "BCO DO ESTADO DO RS S.A.": 2.61, "BCO SAFRA S.A.": 2.3}, "topif_2021": {"BCO DO BRASIL S.A.": 131.71, "CAIXA ECONOMICA FEDERAL": 16.64, "BCO BRADESCO S.A.": 15.96, "ITAÚ UNIBANCO S.A.": 11.18, "BCO DO NORDESTE DO BRASIL S.A.": 11.0, "BCO SANTANDER (BRASIL) S.A.": 8.73, "BCO DA AMAZONIA S.A.": 8.13, "BCO COOPERATIVO SICREDI S.A.": 4.15, "BANCO BTG PACTUAL S.A.": 4.13, "BCO DO ESTADO DO RS S.A.": 3.97}, "topif_2022": {"BCO DO BRASIL S.A.": 153.37, "CAIXA ECONOMICA FEDERAL": 37.86, "BCO BRADESCO S.A.": 17.44, "BCO DO NORDESTE DO BRASIL S.A.": 15.79, "ITAÚ UNIBANCO S.A.": 13.84, "BCO SANTANDER (BRASIL) S.A.": 10.31, "BCO DA AMAZONIA S.A.": 9.3, "BCO DO ESTADO DO RS S.A.": 6.5, "BCO COOPERATIVO SICREDI S.A.": 4.89, "BCO SAFRA S.A.": 4.43}, "topif_2023": {"BCO DO BRASIL S.A.": 157.47, "CAIXA ECONOMICA FEDERAL": 32.56, "BCO BRADESCO S.A.": 21.94, "ITAÚ UNIBANCO S.A.": 19.48, "BCO DO NORDESTE DO BRASIL S.A.": 18.72, "BCO SANTANDER (BRASIL) S.A.": 15.76, "BCO DA AMAZONIA S.A.": 9.38, "BCO DO ESTADO DO RS S.A.": 8.71, "BCO COOPERATIVO SICREDI S.A.": 6.53, "BANCO CNH INDUSTRIAL CAPITAL S.A": 6.43}, "topif_2024": {"BCO DO BRASIL S.A.": 154.91, "CAIXA ECONOMICA FEDERAL": 23.36, "BCO DO NORDESTE DO BRASIL S.A.": 20.59, "BCO BRADESCO S.A.": 20.06, "ITAÚ UNIBANCO S.A.": 16.15, "BCO SANTANDER (BRASIL) S.A.": 11.06, "BCO DA AMAZONIA S.A.": 9.51, "BCO COOPERATIVO SICREDI S.A.": 8.3, "BCO DO ESTADO DO RS S.A.": 7.01, "BNDES": 5.03}, "topif_2025": {"BCO DO BRASIL S.A.": 122.93, "ITAÚ UNIBANCO S.A.": 24.95, "BCO DO NORDESTE DO BRASIL S.A.": 23.12, "BCO BRADESCO S.A.": 20.3, "CAIXA ECONOMICA FEDERAL": 13.91, "BCO DA AMAZONIA S.A.": 12.27, "BCO SANTANDER (BRASIL) S.A.": 10.37, "BCO COOPERATIVO SICREDI S.A.": 8.72, "BCO SAFRA S.A.": 4.72, "BCO BOCOM BBM S.A.": 4.47}, "cat_Pronaf": {"2013": 77.67, "2014": 93.2, "2015": 85.46, "2016": 55.9, "2017": 91.92, "2018": 99.45, "2019": 93.84, "2020": 109.21, "2021": 169.24, "2022": 219.22, "2023": 220.25, "2024": 213.41, "2025": 173.74}, "cat_Pronamp": {"2013": 4.43, "2014": 5.26, "2015": 5.04, "2016": 2.31, "2017": 3.32, "2018": 3.49, "2019": 3.88, "2020": 4.84, "2021": 6.82, "2022": 9.88, "2023": 13.2, "2024": 11.87, "2025": 8.33}, "cat_Empresarial": {"2013": 19.37, "2014": 27.19, "2015": 30.13, "2016": 29.34, "2017": 37.37, "2018": 41.95, "2019": 47.2, "2020": 55.73, "2021": 74.03, "2022": 85.39, "2023": 105.73, "2024": 99.99, "2025": 122.4}, "cat_Agroindústria": {"2013": 22.46, "2014": 18.98, "2015": 19.71, "2016": 18.26, "2017": 20.48, "2018": 19.41, "2019": 19.45, "2020": 20.07, "2021": 24.8, "2022": 25.14, "2023": 38.66, "2024": 26.1, "2025": 25.4}, "ativ_Agrícola": {"2013": 0.0, "2014": 0.0, "2015": 0.0, "2016": 0.0, "2017": 0.0, "2018": 0.0, "2019": 0.0, "2020": 0.0, "2021": 0.0, "2022": 0.0, "2023": 0.0, "2024": 0.0, "2025": 0.0}, "ativ_Pecuária": {"2013": 0.0, "2014": 0.0, "2015": 0.0, "2016": 0.0, "2017": 0.0, "2018": 0.0, "2019": 0.0, "2020": 0.0, "2021": 0.0, "2022": 0.0, "2023": 0.0, "2024": 0.0, "2025": 0.0}, "clima_vol": {"2013": 2.41, "2014": 3.39, "2015": 2.23, "2016": 0.91, "2017": 1.43, "2018": 2.09, "2019": 2.08, "2020": 2.31, "2021": 2.77, "2022": 4.37, "2023": 5.43, "2024": 5.35, "2025": 4.83}, "noclima_vol": {"2013": 136.98, "2014": 161.04, "2015": 151.92, "2016": 116.72, "2017": 165.58, "2018": 178.79, "2019": 176.87, "2020": 204.69, "2021": 292.23, "2022": 357.6, "2023": 400.97, "2024": 374.46, "2025": 354.09}, "lca_cat_2023": {"Agroindústria": 19.18, "Empresarial": 35.54, "Outros": 12.21, "Pronaf": 84.67, "Pronamp": 0.63}, "lca_mod": {"2013": {"Custeio": 0.0, "Investimento": 0.0, "Comercialização": 0.0}, "2014": {"Custeio": 0.02, "Investimento": 0.06, "Comercialização": 0.0}, "2015": {"Custeio": 2.8, "Investimento": 0.58, "Comercialização": 1.79}, "2016": {"Custeio": 3.39, "Investimento": 0.53, "Comercialização": 2.79}, "2017": {"Custeio": 2.38, "Investimento": 0.23, "Comercialização": 4.24}, "2018": {"Custeio": 3.21, "Investimento": 0.65, "Comercialização": 4.23}, "2019": {"Custeio": 20.83, "Investimento": 2.23, "Comercialização": 8.22}, "2020": {"Custeio": 19.09, "Investimento": 4.77, "Comercialização": 5.39}, "2021": {"Custeio": 28.04, "Investimento": 9.25, "Comercialização": 7.89}, "2022": {"Custeio": 52.63, "Investimento": 10.96, "Comercialização": 12.75}, "2023": {"Custeio": 85.68, "Investimento": 19.51, "Comercialização": 28.21}, "2024": {"Custeio": 52.33, "Investimento": 14.53, "Comercialização": 26.71}, "2025": {"Custeio": 42.87, "Investimento": 6.61, "Comercialização": 34.78}}};
+
+/* ═══════════════════════════════════════════
+   PERIOD RANGE SLIDER
+═══════════════════════════════════════════ */
+const ANOS = D.anos.map(String);
+let rangeStart = 0, rangeEnd = ANOS.length - 1;
+
+const rStart = document.getElementById('rStart');
+const rEnd   = document.getElementById('rEnd');
+rStart.max = rEnd.max = ANOS.length - 1;
+rStart.value = 0;
+rEnd.value   = ANOS.length - 1;
+
+function updateRangeUI() {
+  const wrap = document.getElementById('rangeWrap');
+  const fill = document.getElementById('rangeFill');
+  const pct1 = rangeStart / (ANOS.length-1) * 100;
+  const pct2 = rangeEnd   / (ANOS.length-1) * 100;
+  fill.style.left  = pct1 + '%';
+  fill.style.width = (pct2 - pct1) + '%';
+  document.getElementById('periodDisplay').textContent = ANOS[rangeStart] + ' – ' + ANOS[rangeEnd];
+}
+
+rStart.addEventListener('input', () => {
+  rangeStart = Math.min(+rStart.value, rangeEnd - 1);
+  rStart.value = rangeStart;
+  updateRangeUI(); render();
+});
+rEnd.addEventListener('input', () => {
+  rangeEnd = Math.max(+rEnd.value, rangeStart + 1);
+  rEnd.value = rangeEnd;
+  updateRangeUI(); render();
+});
+updateRangeUI();
+
+function filteredAnos() { return ANOS.slice(rangeStart, rangeEnd + 1); }
+
+/* ═══════════════════════════════════════════
+   CHART CONFIG
+═══════════════════════════════════════════ */
+const FONTES = [
+  {k:'LCA Livre',             c:'#c4820a'},
+  {k:'LCA Controlada',        c:'#d4a843'},
+  {k:'Obrigatórios',          c:'#3a7ca5'},
+  {k:'Poupança Rural',        c:'#4a7c5f'},
+  {k:'BNDES/FAT',             c:'#7aab89'},
+  {k:'Fundos Constitucionais',c:'#6b4f7a'},
+  {k:'Outros',                c:'#9a9088'},
+];
+let activeF = new Set(FONTES.map(f=>f.k));
+let currentMode = 'fontes';
+const charts = {};
+
+Chart.defaults.color = '#7a7068';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 9;
+Chart.defaults.plugins.legend.display = false;
+const gridColor = '#ddd8cc';
+
+/* ═══════════════════════════════════════════
+   SIDEBAR CHIPS
+═══════════════════════════════════════════ */
+function buildChips() {
+  const box = document.getElementById('fonteChips');
+  box.innerHTML = '<div class="side-title">Fontes activas</div>';
+  const anos = filteredAnos();
+  FONTES.forEach(({k,c}) => {
+    const on = activeF.has(k);
+    const key = 'serie_'+k.replace(/ /g,'_').replace(/\//g,'_');
+    const total = anos.reduce((s,a) => s + (D[key]?.[a]||0), 0);
+    const div = document.createElement('div');
+    div.className = 'fonte-chip'+(on?' on':'');
+    div.style.borderColor = on ? c+'80' : 'var(--bor)';
+    div.style.background  = on ? c+'0f' : 'var(--s3)';
+    div.innerHTML = `<div class="bar" style="background:${c}"></div>
+      <span class="fname">${k}</span>
+      <span class="fval">${total>0?total.toFixed(0)+'bi':''}</span>`;
+    div.onclick = () => { if(activeF.has(k)) activeF.delete(k); else activeF.add(k); buildChips(); render(); };
+    box.appendChild(div);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   KPI SIDEBAR
+═══════════════════════════════════════════ */
+function updateKPIs() {
+  const anos = filteredAnos();
+  const sum = k => anos.reduce((s,a) => s+(D[k]?.[a]||0), 0);
+  const tot = sum('total_ano');
+  const lca = sum('serie_LCA_Livre');
+  const cus = sum('mod_Custeio');
+  const inv = sum('mod_Investimento');
+  const abc = sum('clima_vol');
+  document.getElementById('kTot').textContent  = tot>0 ? tot.toFixed(0) : '—';
+  document.getElementById('kLCA').textContent  = lca>0 ? lca.toFixed(0) : '—';
+  document.getElementById('kCus').textContent  = tot>0 ? (cus/tot*100).toFixed(0)+'%' : '—';
+  document.getElementById('kInv').textContent  = tot>0 ? (inv/tot*100).toFixed(0)+'%' : '—';
+  document.getElementById('kABC').textContent  = abc>0 ? abc.toFixed(1) : '—';
+  document.getElementById('kLCApct').textContent = tot>0 ? (lca/tot*100).toFixed(1) : '—';
+  document.getElementById('stxt2').textContent =
+    `Período: ${ANOS[rangeStart]}–${ANOS[rangeEnd]} · Total: R$ ${tot.toFixed(0)} bi · Dados Abr 2026`;
+}
+
+/* ═══════════════════════════════════════════
+   CHART HELPERS
+═══════════════════════════════════════════ */
+function makePanel(id, title, tag, extra='') {
+  return `<div class="panel ${extra}">
+    <div class="panel-hdr">
+      <span class="panel-title">${title}</span>
+      <span class="panel-tag">${tag}</span>
+    </div>
+    <div class="cw"><canvas id="c${id}"></canvas></div>
+  </div>`;
+}
+function kill(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+const go={responsive:true,maintainAspectRatio:false};
+
+function barStacked(id,labels,datasets){
+  kill(id);
+  charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets},options:{...go,
+    interaction:{mode:'index'},
+    plugins:{legend:{display:true,position:'top',labels:{color:'#7a7068',padding:8,font:{size:8},boxWidth:8,boxHeight:8}},tooltip:{callbacks:{label:c=>` ${c.dataset.label}: R$${(+c.raw).toFixed(1)}bi`}}},
+    scales:{x:{stacked:true,grid:{color:gridColor},ticks:{font:{size:8},color:'#9a9088'}},y:{stacked:true,grid:{color:gridColor},ticks:{callback:v=>`${v.toFixed(0)}bi`,font:{size:8},color:'#9a9088'}}}
+  }});
+}
+function barH(id,labels,data,colors){
+  kill(id);
+  charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:3}]},options:{...go,
+    indexAxis:'y',
+    plugins:{tooltip:{callbacks:{label:c=>` R$${(+c.raw).toFixed(1)}bi`}}},
+    scales:{x:{grid:{color:gridColor},ticks:{callback:v=>`${v.toFixed(0)}bi`,font:{size:8},color:'#9a9088'}},y:{grid:{display:false},ticks:{font:{size:8},color:'#5a5248'}}}
+  }});
+}
+function barV(id,labels,data,colors){
+  kill(id);
+  charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:4}]},options:{...go,
+    plugins:{tooltip:{callbacks:{label:c=>` R$${(+c.raw).toFixed(1)}bi`}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:8},color:'#5a5248'}},y:{grid:{color:gridColor},ticks:{callback:v=>`${v.toFixed(0)}bi`,font:{size:8},color:'#9a9088'}}}
+  }});
+}
+function donut(id,labels,data,colors){
+  kill(id);
+  charts[id]=new Chart(document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#faf8f4',hoverOffset:5}]},options:{...go,
+    cutout:'58%',
+    plugins:{legend:{display:true,position:'bottom',labels:{color:'#7a7068',padding:8,font:{size:8},boxWidth:8,boxHeight:8}},tooltip:{callbacks:{label:c=>`${c.label}: R$${(+c.raw).toFixed(1)}bi`}}}
+  }});
+}
+function lineMulti(id,labels,datasets){
+  kill(id);
+  charts[id]=new Chart(document.getElementById(id),{type:'line',data:{labels,datasets},options:{...go,
+    interaction:{mode:'index'},
+    plugins:{legend:{display:true,position:'top',labels:{color:'#7a7068',padding:8,font:{size:8},boxWidth:18,boxHeight:2,usePointStyle:true,pointStyle:'line'}},tooltip:{callbacks:{label:c=>` ${c.dataset.label}: R$${(+c.raw).toFixed(1)}bi`}}},
+    scales:{x:{grid:{color:gridColor},ticks:{font:{size:8},color:'#9a9088'}},y:{grid:{color:gridColor},ticks:{callback:v=>`${v.toFixed(0)}bi`,font:{size:8},color:'#9a9088'}}}
+  }});
+}
+
+/* ═══════════════════════════════════════════
+   BRAZIL MAP (SVG choropleth)
+═══════════════════════════════════════════ */
+const UF_PATHS = {
+  AC:"M 135 255 L 155 255 L 165 268 L 155 278 L 140 278 L 130 268 Z",
+  AM:"M 155 180 L 215 170 L 245 185 L 260 210 L 250 240 L 215 255 L 185 255 L 165 268 L 155 255 L 145 235 L 145 210 Z",
+  RR:"M 195 130 L 235 125 L 245 155 L 235 175 L 215 170 L 200 160 Z",
+  PA:"M 260 170 L 310 165 L 330 180 L 340 205 L 325 225 L 300 235 L 270 240 L 250 240 L 260 210 L 245 185 Z",
+  AP:"M 310 145 L 335 145 L 340 165 L 320 168 L 310 165 Z",
+  TO:"M 330 220 L 355 215 L 365 235 L 360 260 L 345 270 L 325 265 L 315 248 L 320 230 Z",
+  MA:"M 340 190 L 375 185 L 385 205 L 375 220 L 355 215 L 340 205 Z",
+  PI:"M 375 195 L 400 192 L 410 210 L 400 225 L 385 225 L 375 220 Z",
+  CE:"M 400 185 L 425 182 L 435 198 L 425 210 L 410 210 L 400 192 Z",
+  RN:"M 425 182 L 448 183 L 450 196 L 435 198 Z",
+  PB:"M 415 198 L 448 196 L 447 207 L 432 210 L 415 207 Z",
+  PE:"M 398 208 L 447 207 L 447 220 L 420 222 L 398 218 Z",
+  AL:"M 435 218 L 450 218 L 452 228 L 437 230 Z",
+  SE:"M 420 226 L 437 224 L 440 234 L 425 236 Z",
+  BA:"M 360 225 L 410 222 L 440 238 L 445 268 L 430 295 L 405 308 L 378 305 L 358 290 L 345 268 L 348 248 Z",
+  MG:"M 340 295 L 378 303 L 410 310 L 420 335 L 408 358 L 388 368 L 358 368 L 335 355 L 320 335 L 325 310 Z",
+  ES:"M 410 318 L 432 315 L 438 338 L 425 352 L 410 355 L 405 338 Z",
+  RJ:"M 388 368 L 415 358 L 428 372 L 418 385 L 395 382 L 383 373 Z",
+  SP:"M 295 340 L 335 335 L 360 358 L 360 380 L 338 392 L 308 390 L 285 375 L 280 355 Z",
+  PR:"M 265 358 L 300 352 L 335 365 L 338 388 L 315 400 L 282 400 L 258 385 L 258 368 Z",
+  SC:"M 255 390 L 285 390 L 310 400 L 308 415 L 285 420 L 258 415 L 250 402 Z",
+  RS:"M 248 415 L 285 415 L 312 418 L 315 445 L 300 462 L 270 465 L 248 450 L 238 430 Z",
+  MS:"M 255 325 L 295 318 L 322 330 L 325 360 L 305 368 L 275 365 L 250 350 L 248 335 Z",
+  MT:"M 218 255 L 270 248 L 300 265 L 305 300 L 290 315 L 255 322 L 220 312 L 208 288 Z",
+  GO:"M 300 280 L 335 272 L 355 290 L 352 318 L 330 330 L 305 325 L 288 310 L 292 292 Z",
+  DF:"M 332 300 L 342 300 L 342 310 L 332 310 Z",
+  RO:"M 200 258 L 235 252 L 250 268 L 245 290 L 225 298 L 200 290 L 190 275 Z",
+};
+
+const UF_NAMES = {
+  AC:"Acre", AM:"Amazonas", RR:"Roraima", PA:"Pará", AP:"Amapá",
+  TO:"Tocantins", MA:"Maranhão", PI:"Piauí", CE:"Ceará", RN:"Rio Grande do Norte",
+  PB:"Paraíba", PE:"Pernambuco", AL:"Alagoas", SE:"Sergipe", BA:"Bahia",
+  MG:"Minas Gerais", ES:"Espírito Santo", RJ:"Rio de Janeiro", SP:"São Paulo",
+  PR:"Paraná", SC:"Santa Catarina", RS:"Rio Grande do Sul", MS:"Mato Grosso do Sul",
+  MT:"Mato Grosso", GO:"Goiás", DF:"Distrito Federal", RO:"Rondônia"
+};
+
+function getUFData() {
+  // Use uf_2023 as base but could be per-period in future
+  return D.uf_2023;
+}
+
+function interpolateColor(val, min, max) {
+  const t = Math.pow((val - min) / (max - min), 0.5);
+  // sage2 → forest
+  const r = Math.round(168 + (45-168)*t);
+  const g = Math.round(201 + (90-201)*t);
+  const b = Math.round(180 + (61-180)*t);
+  return `rgb(${r},${g},${b})`;
+}
+
+function renderMap(containerId) {
+  const ufData = getUFData();
+  const vals = Object.values(ufData);
+  const mn = Math.min(...vals), mx = Math.max(...vals);
+
+  let svgInner = '';
+  for (const [uf, path] of Object.entries(UF_PATHS)) {
+    const val = ufData[uf] || 0;
+    const fill = val > 0 ? interpolateColor(val, mn, mx) : '#ddd8cc';
+    const label = uf === 'DF' ? '' : `<text x="${getCentroid(path)[0]}" y="${getCentroid(path)[1]}" font-size="7" text-anchor="middle" fill="#faf8f4" font-family="monospace" pointer-events="none">${uf}</text>`;
+    svgInner += `<g>
+      <path class="state-path" d="${path}" fill="${fill}" data-uf="${uf}" data-val="${val.toFixed(2)}" />
+      ${label}
+    </g>`;
+  }
+
+  const container = document.getElementById(containerId);
+  container.innerHTML = `
+    <div class="map-container">
+      <svg id="brazilMap" viewBox="120 120 360 370" xmlns="http://www.w3.org/2000/svg">
+        ${svgInner}
+      </svg>
+      <div class="map-legend">
+        <div class="leg-item"><div class="leg-box" style="background:#a8c9b4"></div>Menor volume</div>
+        <div class="leg-item"><div class="leg-box" style="background:#7aab89"></div>Médio</div>
+        <div class="leg-item"><div class="leg-box" style="background:#4a7c5f"></div>Alto</div>
+        <div class="leg-item"><div class="leg-box" style="background:#2d5a3d"></div>Maior volume</div>
+      </div>
+      <p style="font-family:var(--mono);font-size:8px;color:var(--mut);text-align:center;margin-top:4px">Dados UF: 2023 · R$ bilhões · Clique para detalhes</p>
+    </div>`;
+
+  // Add tooltip events
+  const tip = document.getElementById('mapTip');
+  container.querySelectorAll('.state-path').forEach(p => {
+    p.addEventListener('mousemove', e => {
+      const uf = p.dataset.uf;
+      tip.style.display='block';
+      tip.style.left=(e.clientX+12)+'px';
+      tip.style.top=(e.clientY-8)+'px';
+      tip.innerHTML=`<b>${UF_NAMES[uf]||uf}</b> (${uf})<br>R$ ${parseFloat(p.dataset.val).toFixed(2)} bi`;
+    });
+    p.addEventListener('mouseleave', () => { tip.style.display='none'; });
+  });
+}
+
+function getCentroid(pathStr) {
+  const nums = pathStr.match(/[\d.]+/g).map(Number);
+  let xs=[], ys=[];
+  for(let i=0;i<nums.length;i+=2){xs.push(nums[i]);ys.push(nums[i+1]);}
+  return [xs.reduce((a,b)=>a+b,0)/xs.length, ys.reduce((a,b)=>a+b,0)/ys.length];
+}
+
+/* ═══════════════════════════════════════════
+   MICRODADOS API (BCB MDCR)
+═══════════════════════════════════════════ */
+const BCB_BASE = 'https://olinda.bcb.gov.br/olinda/servico/SICOR/versao/v1/odata';
+let currentApiTab = 'produto';
+let apiCache = {};
+
+const API_ENDPOINTS = {
+  produto: {
+    url: `${BCB_BASE}/ContratosDeCosteioporMunicipioeProduto?$top=50&$orderby=Valor desc&$format=json&$select=Produto,Valor,Quantidade`,
+    title: 'Top produtos · Custeio',
+    cols: ['Produto','Contratos','Valor (R$ mi)'],
+    row: r => [r.Produto||r.produto||'—', (r.Quantidade||r.quantidade||0).toLocaleString('pt-BR'), ((r.Valor||r.valor||0)/1e6).toFixed(1)]
+  },
+  subprograma: {
+    url: `${BCB_BASE}/ContratosporProgramaeSubprograma?$top=50&$orderby=Valor desc&$format=json&$select=Programa,Subprograma,Valor,Quantidade`,
+    title: 'Contratos por subprograma',
+    cols: ['Programa','Subprograma','Contratos','Valor (R$ mi)'],
+    row: r => [r.Programa||'—', r.Subprograma||'—', (r.Quantidade||0).toLocaleString('pt-BR'), ((r.Valor||0)/1e6).toFixed(1)]
+  },
+  fonte: {
+    url: `${BCB_BASE}/ContratosporFontedeRecursos?$top=30&$orderby=Valor desc&$format=json&$select=FonteDeRecursos,Valor,Quantidade`,
+    title: 'Contratos por fonte de recursos',
+    cols: ['Fonte de Recursos','Contratos','Valor (R$ mi)'],
+    row: r => [r.FonteDeRecursos||r.Fonte||'—', (r.Quantidade||0).toLocaleString('pt-BR'), ((r.Valor||0)/1e6).toFixed(1)]
+  },
+  genero: {
+    url: `${BCB_BASE}/ContratosporRegiaoUFeGenero?$top=60&$orderby=Valor desc&$format=json&$select=UF,Genero,Valor,Quantidade`,
+    title: 'Contratos por UF e Gênero',
+    cols: ['UF','Gênero','Contratos','Valor (R$ mi)'],
+    row: r => [r.UF||'—', r.Genero||'—', (r.Quantidade||0).toLocaleString('pt-BR'), ((r.Valor||0)/1e6).toFixed(1)]
+  },
+  municipio: {
+    url: `${BCB_BASE}/ContratosporMunicipio?$top=30&$orderby=Valor desc&$format=json&$select=Municipio,UF,Valor,Quantidade`,
+    title: 'Top municípios por volume',
+    cols: ['Município','UF','Contratos','Valor (R$ mi)'],
+    row: r => [r.Municipio||'—', r.UF||'—', (r.Quantidade||0).toLocaleString('pt-BR'), ((r.Valor||0)/1e6).toFixed(1)]
+  },
+  faixavalor: {
+    url: `${BCB_BASE}/ContratosporFaixadeValores?$top=20&$format=json&$select=FaixaDeValores,Valor,Quantidade`,
+    title: 'Distribuição por faixa de valor',
+    cols: ['Faixa','Contratos','Valor (R$ mi)'],
+    row: r => [r.FaixaDeValores||'—', (r.Quantidade||0).toLocaleString('pt-BR'), ((r.Valor||0)/1e6).toFixed(1)]
+  }
+};
+
+async function loadApiData(tab) {
+  currentApiTab = tab;
+  // Update tab styles
+  document.querySelectorAll('.api-tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+
+  const panel = document.getElementById('apiContent');
+  if (!panel) return;
+
+  if (apiCache[tab]) { renderApiTable(panel, tab, apiCache[tab]); return; }
+
+  panel.innerHTML = `<div class="api-loading"><div class="spin"></div>Consultando API BCB…</div>`;
+
+  try {
+    const ep = API_ENDPOINTS[tab];
+    const res = await fetch(ep.url, {headers:{'Accept':'application/json'}});
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const json = await res.json();
+    const rows = json.value || json['@odata.value'] || json.data || [];
+    if (!rows.length) throw new Error('Sem dados');
+    apiCache[tab] = rows;
+    renderApiTable(panel, tab, rows);
+  } catch(e) {
+    panel.innerHTML = `<div class="api-err">⚠ Erro ao acessar API BCB: ${e.message}<br><br>
+      <span style="color:var(--mut)">A API pública do BCB pode ter CORS restrito. Os dados estáticos do painel continuam disponíveis nas demais abas.</span><br><br>
+      <a href="https://dadosabertos.bcb.gov.br/dataset/matrizdadoscreditorural" target="_blank" style="color:var(--moss)">↗ Acessar dados diretamente no BCB</a></div>`;
+  }
+}
+
+function renderApiTable(panel, tab, rows) {
+  const ep = API_ENDPOINTS[tab];
+  const maxVal = Math.max(...rows.map(r => {
+    const v = ep.row(r);
+    return parseFloat(v[v.length-1].replace(',','.')) || 0;
+  }));
+
+  let html = `<table class="api-table"><thead><tr>`;
+  ep.cols.forEach(c => { html += `<th>${c}</th>`; });
+  html += `</tr></thead><tbody>`;
+
+  rows.slice(0, 30).forEach(r => {
+    const cells = ep.row(r);
+    const lastVal = parseFloat(cells[cells.length-1]) || 0;
+    const barW = maxVal > 0 ? Math.max(2, lastVal/maxVal*80) : 0;
+    html += '<tr>';
+    cells.forEach((c, i) => {
+      if (i === cells.length-1) {
+        html += `<td class="val-cell"><span class="mini-bar" style="width:${barW}px"></span>${c}</td>`;
+      } else if (i===1 && tab==='genero') {
+        const col = c==='Feminino'?'var(--dusk)':c==='Masculino'?'var(--sky)':'var(--mut)';
+        html += `<td><span class="gender-pill" style="background:${col}22;color:${col}">${c}</span></td>`;
+      } else {
+        html += `<td>${c}</td>`;
+      }
+    });
+    html += '</tr>';
+  });
+  html += `</tbody></table>`;
+  panel.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════
+   RENDER MODES
+═══════════════════════════════════════════ */
+function setMode(m) {
+  currentMode = m;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.mode===m));
+  render();
+}
+
+function render() {
+  updateKPIs();
+  buildChips();
+
+  const anos = filteredAnos();
+  const panels = document.getElementById('panels');
+  const lastAno = anos[anos.length-1];
+
+  // helper: sum series over period
+  const sumS = key => anos.reduce((s,a)=>s+(D[key]?.[a]||0),0);
+  const getS = key => anos.map(a=>D[key]?.[a]||0);
+
+  /* ── FONTES ── */
+  if(currentMode==='fontes'){
+    panels.className='panels mode-fontes';
+    panels.innerHTML=
+      makePanel(1,'Evolução das fontes de recursos · '+ANOS[rangeStart]+'–'+ANOS[rangeEnd],'R$ bilhões empilhados','span2 spanR')+
+      makePanel(2,'Composição por fonte · período','donut')+
+      makePanel(3,'Top 10 IFs · '+lastAno,'R$ bi')+
+      makePanel(4,'Modalidade · período','donut')+
+      makePanel(5,'Categoria produtora · período','donut');
+
+    const af=FONTES.filter(f=>activeF.has(f.k));
+    barStacked('c1',anos,af.map(({k,c})=>({label:k,data:getS('serie_'+k.replace(/ /g,'_').replace(/\//g,'_')),backgroundColor:c,borderWidth:0,borderRadius:1})));
+
+    const fV=af.map(({k})=>sumS('serie_'+k.replace(/ /g,'_').replace(/\//g,'_')));
+    donut('c2',af.map(f=>f.k),fV,af.map(f=>f.c));
+
+    const ifs=Object.entries(D['topif_'+lastAno]||{}).slice(0,10);
+    barH('c3',ifs.map(d=>d[0].replace(/BCO /g,'').replace(/S\.A\./g,'').trim().slice(0,22)),ifs.map(d=>d[1]),FONTES.map(f=>f.c));
+
+    donut('c4',['Custeio','Investimento','Comercialização'],
+      ['Custeio','Investimento','Comercializacao'].map(k=>sumS('mod_'+k)),
+      ['#8b6234','#3a7ca5','#4a7c5f']);
+
+    const cats=['Pronaf','Pronamp','Empresarial','Agroindústria'];
+    donut('c5',cats,cats.map(c=>sumS('cat_'+c)),['#3a7ca5','#4a7c5f','#c4820a','#6b4f7a']);
+  }
+
+  /* ── PORTE ── */
+  if(currentMode==='cat'){
+    panels.className='panels mode-cat';
+    panels.innerHTML=
+      makePanel(1,'Evolução por porte · '+ANOS[rangeStart]+'–'+ANOS[rangeEnd],'R$ bi')+
+      makePanel(2,'Composição acumulada · período','donut')+
+      makePanel(3,'LCA livre por categoria · 2023','R$ bi')+
+      makePanel(4,'Trajetórias por categoria','linhas');
+    const cats=['Pronaf','Pronamp','Empresarial','Agroindústria'];
+    const cc=['#3a7ca5','#4a7c5f','#c4820a','#6b4f7a'];
+    barStacked('c1',anos,cats.map((c,i)=>({label:c,data:getS('cat_'+c),backgroundColor:cc[i],borderWidth:0})));
+    donut('c2',cats,cats.map(c=>sumS('cat_'+c)),cc);
+    const lc=D.lca_cat_2023||{};
+    barH('c3',cats,cats.map(c=>lc[c]||0),cc);
+    lineMulti('c4',anos,cats.map((c,i)=>({label:c,data:getS('cat_'+c),borderColor:cc[i],backgroundColor:cc[i]+'22',borderWidth:2,pointRadius:2,fill:true,tension:.3})));
+  }
+
+  /* ── LCA ── */
+  if(currentMode==='lca'){
+    panels.className='panels mode-lca';
+    panels.innerHTML=
+      makePanel(1,'LCA livre vs. demais fontes · '+ANOS[rangeStart]+'–'+ANOS[rangeEnd],'R$ bi','span2')+
+      makePanel(2,'LCA livre por modalidade · período','R$ bi')+
+      makePanel(3,'Modalidade LCA · '+lastAno,'donut');
+    barStacked('c1',anos,[
+      {label:'LCA Livre',data:getS('serie_LCA_Livre'),backgroundColor:'#c4820a',borderWidth:0},
+      {label:'Demais fontes',data:anos.map(a=>(D.total_ano?.[a]||0)-(D.serie_LCA_Livre?.[a]||0)),backgroundColor:'#ddd8cc',borderWidth:0},
+    ]);
+    const mc=['Custeio','Investimento','Comercialização'];
+    const mcc=['#8b6234','#3a7ca5','#4a7c5f'];
+    lineMulti('c2',anos,mc.map((m,i)=>({label:m,data:anos.map(a=>D.lca_mod?.[a]?.[m]||0),borderColor:mcc[i],backgroundColor:mcc[i]+'22',borderWidth:2,pointRadius:2,fill:true,tension:.3})));
+    const lm=D.lca_mod?.[lastAno]||{};
+    donut('c3',mc,mc.map(m=>lm[m]||0),mcc);
+  }
+
+  /* ── CLIMA ── */
+  if(currentMode==='clima'){
+    panels.className='panels mode-clima';
+    panels.innerHTML=
+      makePanel(1,'ABC/RenovAgro vs. crédito total · período','R$ bi')+
+      makePanel(2,'% ABC/RenovAgro do crédito total','linha')+
+      makePanel(3,'Fontes ABC/RenovAgro · estimativa','% do volume')+
+      makePanel(4,'LCA × BNDES × ABC (% do total)','comparativo');
+    barStacked('c1',anos,[
+      {label:'ABC/RenovAgro',data:getS('clima_vol'),backgroundColor:'#4a7c5f',borderWidth:0},
+      {label:'Demais',data:getS('noclima_vol'),backgroundColor:'#ddd8cc',borderWidth:0},
+    ]);
+    kill('c2');
+    charts['c2']=new Chart(document.getElementById('c2'),{type:'line',
+      data:{labels:anos,datasets:[{label:'% ABC',data:anos.map(a=>{const t=D.total_ano?.[a]||1,c=D.clima_vol?.[a]||0;return+(c/t*100).toFixed(2);}),borderColor:'#4a7c5f',backgroundColor:'#4a7c5f22',borderWidth:2.5,pointRadius:3,fill:true,tension:.35}]},
+      options:{...go,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw.toFixed(2)}%`}}},
+        scales:{x:{grid:{color:gridColor},ticks:{font:{size:8},color:'#9a9088'}},y:{grid:{color:gridColor},ticks:{callback:v=>`${v.toFixed(1)}%`,font:{size:8},color:'#9a9088'}}}}});
+    barH('c3',['BNDES/FAT','Recursos Livres','LCA Controlada','Poupança Rural','Obrigatórios','LCA Livre'],
+      [56.7,9.5,7.1,6.7,0.3,0.0],['#7aab89','#9a9088','#d4a843','#4a7c5f','#3a7ca5','#c4820a']);
+    lineMulti('c4',anos,[
+      {label:'LCA Livre %',data:anos.map(a=>{const t=D.total_ano?.[a]||1,l=D.serie_LCA_Livre?.[a]||0;return+(l/t*100).toFixed(1);}),borderColor:'#c4820a',backgroundColor:'transparent',borderWidth:2,pointRadius:2,fill:false,tension:.3},
+      {label:'BNDES/FAT %',data:anos.map(a=>{const t=D.total_ano?.[a]||1,b=D.serie_BNDES_FAT?.[a]||0;return+(b/t*100).toFixed(1);}),borderColor:'#7aab89',backgroundColor:'transparent',borderWidth:2,pointRadius:2,fill:false,tension:.3,borderDash:[5,3]},
+      {label:'ABC/Renov. %',data:anos.map(a=>{const t=D.total_ano?.[a]||1,c=D.clima_vol?.[a]||0;return+(c/t*100).toFixed(2);}),borderColor:'#4a7c5f',backgroundColor:'transparent',borderWidth:2,pointRadius:2,fill:false,tension:.3,borderDash:[2,2]},
+    ]);
+  }
+
+  /* ── REGIÃO ── */
+  if(currentMode==='regiao'){
+    panels.className='panels mode-regiao';
+    panels.innerHTML=
+      makePanel(1,'Evolução por região · '+ANOS[rangeStart]+'–'+ANOS[rangeEnd],'R$ bi')+
+      makePanel(2,'Comparativo regional · '+lastAno,'R$ bi')+
+      makePanel(3,'Top 15 UFs · 2023','R$ bi');
+    const regs=['SUL','NORTE','SUDESTE','NORDESTE','CENTRO-OESTE'];
+    const rc=['#4a7c5f','#3a7ca5','#c4820a','#d4a843','#6b4f7a'];
+    barStacked('c1',anos,regs.map((r,i)=>({label:r,data:getS('reg_'+r.replace(/ /g,'_').replace(/-/g,'_')),backgroundColor:rc[i]||'#9a9088',borderWidth:0})));
+    barV('c2',regs,regs.map(r=>D['reg_'+r.replace(/ /g,'_').replace(/-/g,'_')]?.[lastAno]||0),rc);
+    const ufE=Object.entries(D.uf_2023||{}).sort((a,b)=>b[1]-a[1]).slice(0,15);
+    barH('c3',ufE.map(d=>d[0]),ufE.map(d=>d[1]),ufE.map((_,i)=>FONTES[i%FONTES.length].c));
+  }
+
+  /* ── MAPA ── */
+  if(currentMode==='mapa'){
+    panels.className='panels mode-mapa';
+    panels.innerHTML=`
+      <div class="panel tall span2" style="display:flex;flex-direction:column">
+        <div class="panel-hdr">
+          <span class="panel-title">Crédito rural por UF · 2023</span>
+          <span class="panel-tag">R$ bilhões · Hover para detalhes</span>
+        </div>
+        <div style="display:flex;flex:1;min-height:0">
+          <div id="mapPanel" style="flex:1.4;border-right:1px solid var(--bor)"></div>
+          <div style="flex:1;display:flex;flex-direction:column">
+            <div class="panel-hdr" style="border-bottom:1px solid var(--bor)">
+              <span class="panel-title">Ranking UFs · 2023</span>
+            </div>
+            <div style="padding:10px;overflow-y:auto;flex:1">
+              <table class="api-table">
+                <thead><tr><th>#</th><th>UF</th><th>Volume</th></tr></thead>
+                <tbody>
+                  ${Object.entries(D.uf_2023).sort((a,b)=>b[1]-a[1]).map(([uf,v],i)=>`
+                    <tr>
+                      <td style="color:var(--mut);font-family:var(--mono);font-size:9px">${i+1}</td>
+                      <td><b>${uf}</b> <span style="color:var(--mut);font-size:9px">${UF_NAMES[uf]||''}</span></td>
+                      <td class="val-cell"><span class="mini-bar" style="width:${Math.max(2,v/53*80)}px"></span>R$ ${v.toFixed(1)} bi</td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    setTimeout(() => renderMap('mapPanel'), 50);
+  }
+
+  /* ── MICRODADOS API ── */
+  if(currentMode==='microdados'){
+    panels.className='panels mode-microdados';
+    panels.innerHTML=`
+      <div class="panel span3" style="display:flex;flex-direction:column;min-height:500px">
+        <div class="panel-hdr">
+          <span class="panel-title">Microdados · API BCB/MDCR em tempo real</span>
+          <span class="panel-tag">OLINDA · OData · JSON</span>
+        </div>
+        <div class="api-tabs">
+          <div class="api-tab active" data-tab="produto" onclick="loadApiData('produto')">Produto</div>
+          <div class="api-tab" data-tab="subprograma" onclick="loadApiData('subprograma')">Subprograma</div>
+          <div class="api-tab" data-tab="fonte" onclick="loadApiData('fonte')">Fonte de Recursos</div>
+          <div class="api-tab" data-tab="genero" onclick="loadApiData('genero')">Gênero × UF</div>
+          <div class="api-tab" data-tab="municipio" onclick="loadApiData('municipio')">Municípios</div>
+          <div class="api-tab" data-tab="faixavalor" onclick="loadApiData('faixavalor')">Faixa de Valor</div>
+        </div>
+        <div id="apiContent" class="api-panel">
+          <div class="api-loading"><div class="spin"></div>Carregando…</div>
+        </div>
+        <div style="padding:8px 14px;border-top:1px solid var(--bor);font-family:var(--mono);font-size:8px;color:var(--mut)">
+          Fonte: BCB · SICOR · MDCR · API pública · <a href="https://olinda.bcb.gov.br/olinda/servico/SICOR" target="_blank" style="color:var(--moss)">↗ Documentação OLINDA</a>
+          &nbsp;·&nbsp; Nota: CORS pode limitar acesso direto. Use VPN ou acesse via servidor proxy se necessário.
+        </div>
+      </div>`;
+    loadApiData(currentApiTab === 'produto' ? 'produto' : currentApiTab);
+  }
+}
+
+setMode('fontes');
+</script>
+</body>
+</html>
