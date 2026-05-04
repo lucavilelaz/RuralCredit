@@ -509,10 +509,8 @@ let currentApiTab = 'municipio';
 let apiCache = {};
 
 function odataUrl(resource, params = {}) {
-  // Vercel serverless proxy: /api/bcb?endpoint=<recurso>&$format=json&...
-  // Isso evita CORS e deixa o servidor montar a URL final do OLINDA/BCB.
-  const qs = new URLSearchParams({ endpoint: resource, $format: 'json', ...params });
-  return `${BCB_BASE}?${qs.toString()}`;
+  const qs = new URLSearchParams({ $format: 'json', ...params });
+  return `${BCB_BASE}?endpoint=${encodeURIComponent(resource)}&${qs.toString()}`;
 }
 
 function selectedYears() {
@@ -544,7 +542,7 @@ const API_ENDPOINTS = {
     resource: 'CusteioInvestimentoComercialIndustrialSemFiltros',
     title: 'Contratos por município',
     select: 'Municipio,nomeUF,AnoEmissao,MesEmissao,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao',
-    top: 500,
+    pageSize: 1000,
     cols: ['Município','UF','Contratos','Valor total (R$ mi)'],
     row: r => [r.Municipio, r.nomeUF, intBR(totalQtd(r)), moneyMi(totalValor(r))]
   },
@@ -552,7 +550,7 @@ const API_ENDPOINTS = {
     resource: 'FonteRecursos',
     title: 'Contratos por fonte de recursos',
     select: 'nomeFonteRecurso,AnoEmissao,MesEmissao,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao',
-    top: 500,
+    pageSize: 1000,
     cols: ['Fonte de recursos','Contratos','Valor total (R$ mi)'],
     row: r => [r.nomeFonteRecurso, intBR(totalQtd(r)), moneyMi(totalValor(r))]
   },
@@ -560,7 +558,7 @@ const API_ENDPOINTS = {
     resource: 'ProgramaSubprograma',
     title: 'Contratos por programa e subprograma',
     select: 'nomePrograma,nomeSubPrograma,AnoEmissao,MesEmissao,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao',
-    top: 500,
+    pageSize: 1000,
     cols: ['Programa','Subprograma','Contratos','Valor total (R$ mi)'],
     row: r => [r.nomePrograma, r.nomeSubPrograma, intBR(totalQtd(r)), moneyMi(totalValor(r))]
   },
@@ -568,7 +566,7 @@ const API_ENDPOINTS = {
     resource: 'CusteioMunicipioProduto',
     title: 'Custeio por município e produto',
     select: 'nomeProduto,Municipio,AnoEmissao,MesEmissao,VlCusteio,AreaCusteio',
-    top: 500,
+    pageSize: 1000,
     cols: ['Produto','Município','Área','Valor custeio (R$ mi)'],
     row: r => [r.nomeProduto, r.Municipio, intBR(r.AreaCusteio), moneyMi(r.VlCusteio)]
   },
@@ -576,7 +574,7 @@ const API_ENDPOINTS = {
     resource: 'RegiaoUFGenero',
     title: 'Contratos por região, UF e gênero',
     select: 'cdSexo,nomeRegiao,nomeUF,AnoEmissao,MesEmissao,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao',
-    top: 500,
+    pageSize: 1000,
     cols: ['UF','Região','Gênero','Contratos','Valor total (R$ mi)'],
     row: r => [r.nomeUF, r.nomeRegiao, r.cdSexo, intBR(totalQtd(r)), moneyMi(totalValor(r))]
   },
@@ -584,7 +582,7 @@ const API_ENDPOINTS = {
     resource: 'SegmentoTipoPessoa',
     title: 'Contratos por tipo de pessoa, segmento e IF',
     select: 'Categoria,nomeSegmento,nomeIF,AnoEmissao,MesEmissao,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao',
-    top: 500,
+    pageSize: 1000,
     cols: ['Tipo pessoa','Segmento','Instituição financeira','Contratos','Valor total (R$ mi)'],
     row: r => [r.Categoria, r.nomeSegmento, r.nomeIF, intBR(totalQtd(r)), moneyMi(totalValor(r))]
   },
@@ -592,35 +590,59 @@ const API_ENDPOINTS = {
     resource: 'Faixa',
     title: 'Distribuição por faixa de valor',
     select: 'faixa,AnoEmissao,MesEmissao,Quantidade,Valor,ValorMedio',
-    top: 500,
+    pageSize: 1000,
     cols: ['Faixa','Contratos','Valor total (R$ mi)','Valor médio (R$)'],
     row: r => [r.faixa, intBR(r.Quantidade), moneyMi(r.Valor), n(r.ValorMedio).toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0})]
   }
 };
 
-async function fetchBCB(ep) {
-  // A MDCR v2 documenta AnoEmissao como texto; alguns servidores OData do BCB
-  // retornam HTTP 400 quando usamos comparadores ge/le em campos texto.
-  // Por isso consultamos ano a ano usando eq e juntamos os resultados no painel.
+async function fetchBCB(ep, onProgress) {
+  // Sem limite fixo de dados: para cada ano selecionado, buscamos em páginas
+  // usando $skip/$top até a API não retornar mais linhas. Mantemos AnoEmissao
+  // com eq porque a MDCR v2 trata esse campo como texto e ge/le costuma gerar 400.
   const years = selectedYears();
+  const pageSize = ep.pageSize || 1000;
   const allRows = [];
   const urls = [];
 
-  for (const year of years) {
-    const url = odataUrl(ep.resource, {
-      $top: ep.top || 100,
-      $select: ep.select,
-      $filter: `AnoEmissao eq '${year}'`
-    });
-    urls.push(url);
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (!res.ok) throw new Error(`HTTP ${res.status} · ${url}`);
-    const json = await res.json();
-    const rows = json.value || json['@odata.value'] || json.data || [];
-    allRows.push(...rows);
+  async function fetchYear(year) {
+    let skip = 0;
+    let page = 1;
+    let yearRows = [];
+
+    while (true) {
+      const url = odataUrl(ep.resource, {
+        $top: pageSize,
+        $skip: skip,
+        $select: ep.select,
+        $filter: `AnoEmissao eq '${year}'`
+      });
+
+      if (!urls.length) urls.push(url);
+      onProgress?.(`Ano ${year} · página ${page} · ${allRows.length + yearRows.length} registros carregados…`);
+
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error(`HTTP ${res.status} · ${url}`);
+
+      const json = await res.json();
+      const rows = json.value || json['@odata.value'] || json.data || [];
+      yearRows.push(...rows);
+
+      if (rows.length < pageSize) break;
+
+      skip += pageSize;
+      page += 1;
+    }
+
+    return yearRows;
   }
 
-  return { rows: allRows, url: urls[0], urls };
+  // Paraleliza por ano para reduzir o tempo total, mas pagina cada ano
+  // sequencialmente para não sobrecarregar a API do BCB nem a Vercel.
+  const results = await Promise.all(years.map(fetchYear));
+  results.forEach(rows => allRows.push(...rows));
+
+  return { rows: allRows, url: urls[0], urls, pageSize };
 }
 
 async function loadApiData(tab) {
@@ -630,32 +652,34 @@ async function loadApiData(tab) {
   const panel = document.getElementById('apiContent');
   if (!panel) return;
 
-  const cacheKey = `${tab}:${document.getElementById('rStart')?.value}-${document.getElementById('rEnd')?.value}`;
+  const cacheKey = `${tab}:${document.getElementById('rStart')?.value}-${document.getElementById('rEnd')?.value}:all-pages`;
   if (apiCache[cacheKey]) { renderApiTable(panel, tab, apiCache[cacheKey]); return; }
 
   panel.innerHTML = `<div class="api-loading"><div class="spin"></div>Consultando API BCB/MDCR v2…</div>`;
 
   try {
     const ep = API_ENDPOINTS[tab];
-    const payload = await fetchBCB(ep);
+    const payload = await fetchBCB(ep, msg => {
+      panel.innerHTML = `<div class="api-loading"><div class="spin"></div>${esc(msg)}</div>`;
+    });
     if (!payload.rows.length) throw new Error('Sem dados para o período selecionado');
     apiCache[cacheKey] = payload;
     renderApiTable(panel, tab, payload);
   } catch(e) {
     panel.innerHTML = `<div class="api-err">⚠ Erro ao acessar API BCB: ${esc(e.message)}<br><br>
-      <span style="color:var(--mut)">Confira se o arquivo <b>api/bcb.js</b> está dentro da pasta <b>api</b> no GitHub e se o deploy da Vercel já terminou. Se o erro for 400, o endpoint ou algum campo do <b>$select</b> pode estar diferente no OLINDA.</span><br><br>
-      <a href="/api/bcb?endpoint=${API_ENDPOINTS[tab]?.resource}&%24top=10&%24format=json" target="_blank" style="color:var(--moss)">↗ Testar via proxy Vercel</a></div>`;
+      <span style="color:var(--mut)">A consulta agora passa pelo proxy da Vercel em <b>/api/bcb</b>. Se aparecer 404, confira se o arquivo <b>api/bcb.js</b> está dentro da pasta <b>api</b> no GitHub e se o deploy terminou.</span><br><br>
+      <a href="/api/bcb?endpoint=${encodeURIComponent(API_ENDPOINTS[tab]?.resource || '')}&%24top=10&%24format=json" target="_blank" style="color:var(--moss)">↗ Testar endpoint via proxy</a></div>`;
   }
 }
 
 function renderApiTable(panel, tab, payload) {
   const ep = API_ENDPOINTS[tab];
-  const rows = [...payload.rows].sort((a,b) => totalValor(b) - totalValor(a)).slice(0, 30);
+  const rows = [...payload.rows].sort((a,b) => totalValor(b) - totalValor(a));
   const maxVal = Math.max(...rows.map(totalValor), 0);
 
   let html = `<div style="font-family:var(--mono);font-size:8px;color:var(--mut);margin-bottom:8px;line-height:1.45">
-    ${esc(ep.title)} · Período: ${D.anos[document.getElementById('rStart')?.value || 0]}–${D.anos[document.getElementById('rEnd')?.value || D.anos.length-1]}<br>
-    <a href="${esc(payload.url)}" target="_blank" style="color:var(--moss)">↗ URL consultada</a>
+    ${esc(ep.title)} · Período: ${D.anos[document.getElementById('rStart')?.value || 0]}–${D.anos[document.getElementById('rEnd')?.value || D.anos.length-1]} · ${rows.length.toLocaleString('pt-BR')} registros<br>
+    <a href="${esc(payload.url)}" target="_blank" style="color:var(--moss)">↗ URL consultada via proxy</a>
   </div>`;
   html += `<table class="api-table"><thead><tr>`;
   ep.cols.forEach(c => { html += `<th>${esc(c)}</th>`; });
@@ -863,7 +887,7 @@ function render() {
         </div>
         <div style="padding:8px 14px;border-top:1px solid var(--bor);font-family:var(--mono);font-size:8px;color:var(--mut)">
           Fonte: BCB · SICOR · MDCR · API pública · <a href="https://olinda.bcb.gov.br/olinda/servico/SICOR" target="_blank" style="color:var(--moss)">↗ Documentação OLINDA</a>
-          &nbsp;·&nbsp; Consultas feitas via proxy Vercel em <b>/api/bcb</b>.
+          &nbsp;·&nbsp; Nota: CORS pode limitar acesso direto. Use VPN ou acesse via servidor proxy se necessário.
         </div>
       </div>`;
     loadApiData(currentApiTab || 'municipio');
