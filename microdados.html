@@ -1,269 +1,39 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Microdados BCB · SICOR</title>
-<style>
-  body{font-family:Arial,sans-serif;background:#f5f2ec;color:#222;padding:20px}
-  h1{color:#2d5a3d}
-  .box{background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin:12px 0}
-  label{display:block;font-size:13px;margin-top:10px}
-  select,input,button{padding:9px;margin-top:4px}
-  button{cursor:pointer;background:#2d5a3d;color:#fff;border:0;border-radius:5px;margin-right:8px}
-  button.secondary{background:#777}
-  button.danger{background:#b34a2a}
-  pre{background:#111;color:#eee;padding:12px;border-radius:6px;max-height:180px;overflow:auto}
-  table{width:100%;border-collapse:collapse;background:#fff;font-size:12px}
-  th,td{border:1px solid #ddd;padding:6px;text-align:left}
-  th{background:#edeae1;position:sticky;top:0}
-  .muted{color:#777;font-size:13px}
-</style>
-</head>
-<body>
-
-<h1>🌿 Microdados Crédito Rural · BCB/SICOR</h1>
-<p class="muted">Explorador separado para baixar dados paginados sem travar o dashboard.</p>
-
-<div class="box">
-  <label>Endpoint</label>
-  <select id="endpoint">
-    <option value="FonteRecursosIF">FonteRecursosIF</option>
-    <option value="SegmentoTipoPessoa">SegmentoTipoPessoa</option>
-    <option value="CusteioInvestimentoComercialIndustrialSemFiltros">Contratos por Município</option>
-    <option value="ProgramaSubprograma">ProgramaSubprograma</option>
-    <option value="RegiaoUFGenero">RegiaoUFGenero</option>
-    <option value="Faixa">Faixa</option>
-  </select>
-
-  <label>AnoEmissao</label>
-  <select id="ano">
-    <option>2013</option><option>2014</option><option>2015</option>
-    <option>2016</option><option>2017</option><option>2018</option>
-    <option>2019</option><option>2020</option><option>2021</option>
-    <option>2022</option><option selected>2023</option>
-    <option>2024</option><option>2025</option>
-  </select>
-
-  <label>Tamanho da página</label>
-  <select id="top">
-    <option value="50">50</option>
-    <option value="100" selected>100</option>
-    <option value="250">250</option>
-    <option value="500">500</option>
-  </select>
-
-  <label>$select opcional</label>
-  <input id="select" style="width:100%" placeholder="Ex: AnoEmissao,MesEmissao,nomeFonteRecurso,VlCusteio" />
-
-  <br><br>
-  <button onclick="carregarTudo()">Carregar tudo do ano</button>
-  <button class="secondary" onclick="baixarCSV()">Baixar CSV</button>
-  <button class="secondary" onclick="baixarJSON()">Baixar JSON</button>
-  <button class="danger" onclick="parar()">Parar</button>
-</div>
-
-<div class="box">
-  <strong>Status</strong>
-  <div id="status">Pronto.</div>
-  <pre id="log"></pre>
-</div>
-
-<div class="box">
-  <strong>Amostra dos dados</strong>
-  <div id="table"></div>
-</div>
+<button onclick="diagnosticar()">Diagnosticar endpoint</button>
 
 <script>
-let dados = [];
-let stopFlag = false;
+async function diagnosticar() {
+  const endpoint = document.getElementById("endpoint").value;
+  const ano = document.getElementById("ano").value;
 
-const SELECTS = {
-  FonteRecursosIF:
-    "AnoEmissao,MesEmissao,nomeFonteRecurso,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao",
-  SegmentoTipoPessoa:
-    "AnoEmissao,MesEmissao,Categoria,nomeSegmento,nomeIF,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao",
-  CusteioInvestimentoComercialIndustrialSemFiltros:
-    "AnoEmissao,MesEmissao,Municipio,nomeUF,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao",
-  ProgramaSubprograma:
-    "AnoEmissao,MesEmissao,nomePrograma,nomeSubPrograma,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao",
-  RegiaoUFGenero:
-    "AnoEmissao,MesEmissao,nomeRegiao,nomeUF,cdSexo,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao",
-  Faixa:
-    "AnoEmissao,MesEmissao,faixa,Quantidade,Valor,ValorMedio"
-};
+  const testes = [
+    { nome: "JSON simples", params: { "$format": "json", "$top": "1" } },
+    { nome: "JSON com ano", params: { "$format": "json", "$top": "1", "$filter": `AnoEmissao eq '${ano}'` } },
+    { nome: "JSON sem select página 100", params: { "$format": "json", "$top": "100", "$skip": "0" } },
+    { nome: "CSV simples", params: { "$format": "text/csv", "$top": "10" } }
+  ];
 
-document.getElementById("endpoint").addEventListener("change", () => {
-  const ep = document.getElementById("endpoint").value;
-  document.getElementById("select").value = SELECTS[ep] || "";
-});
-document.getElementById("select").value = SELECTS.FonteRecursos;
-
-function log(msg){
-  const el = document.getElementById("log");
-  el.textContent += msg + "\n";
-  el.scrollTop = el.scrollHeight;
-}
-
-function setStatus(msg){
-  document.getElementById("status").textContent = msg;
-}
-
-function buildUrl(endpoint, params){
-  const qs = new URLSearchParams({ endpoint, "$format":"json", ...params });
-  return "/api/bcb?" + qs.toString();
-}
-
-async function fetchPage(endpoint, params){
-  const url = buildUrl(endpoint, params);
-  const res = await fetch(url);
-  const text = await res.text();
-
-  if(!res.ok){
-    throw new Error("HTTP " + res.status + "\n" + text + "\nURL: " + url);
-  }
-
-  return JSON.parse(text);
-}
-
-async function carregarTudo(){
-  dados = [];
-  stopFlag = false;
   document.getElementById("log").textContent = "";
-  document.getElementById("table").innerHTML = "";
 
-  const endpoint = document.getElementById("endpoint").value;
-  const ano = document.getElementById("ano").value;
-  const top = Number(document.getElementById("top").value);
-  const select = document.getElementById("select").value.trim();
+  for (const t of testes) {
+    const url = "/api/bcb?" + new URLSearchParams({
+      endpoint,
+      ...t.params
+    }).toString();
 
-  let skip = 0;
-  let pagina = 1;
+    log("Testando: " + t.nome);
+    log(url);
 
-  setStatus("Carregando...");
-  log("Endpoint: " + endpoint);
-  log("Ano: " + ano);
+    try {
+      const res = await fetch(url);
+      const text = await res.text();
 
-  while(true){
-    if(stopFlag){
-      setStatus("Parado pelo usuário. Registros carregados: " + dados.length);
-      break;
+      log("HTTP " + res.status);
+      log(text.slice(0, 500));
+      log("----------------------");
+    } catch (e) {
+      log("ERRO: " + e.message);
+      log("----------------------");
     }
-
-    const params = {
-      "$top": String(top),
-      "$skip": String(skip),
-      "$filter": "AnoEmissao eq '" + ano + "'"
-    };
-
-    if(select) params["$select"] = select;
-
-    setStatus(`Página ${pagina} · skip ${skip} · carregados ${dados.length}`);
-
-    let json;
-    try{
-      json = await fetchPage(endpoint, params);
-    }catch(e){
-      log("ERRO na página " + pagina);
-      log(String(e));
-      setStatus("Erro. Dados carregados até agora: " + dados.length);
-      renderTable(dados.slice(0,100));
-      return;
-    }
-
-    const rows = json.value || [];
-    dados.push(...rows);
-
-    log(`Página ${pagina}: ${rows.length} registros · total ${dados.length}`);
-
-    renderTable(dados.slice(0,100));
-
-    if(rows.length < top){
-      setStatus("Finalizado. Total carregado: " + dados.length);
-      log("Fim: última página menor que " + top);
-      break;
-    }
-
-    skip += top;
-    pagina += 1;
-
-    await new Promise(r => setTimeout(r, 250));
   }
-}
-
-function parar(){
-  stopFlag = true;
-}
-
-function renderTable(rows){
-  if(!rows.length){
-    document.getElementById("table").innerHTML = "<p>Nenhum dado.</p>";
-    return;
-  }
-
-  const cols = Object.keys(rows[0]);
-  let html = "<table><thead><tr>";
-  cols.forEach(c => html += "<th>" + escapeHtml(c) + "</th>");
-  html += "</tr></thead><tbody>";
-
-  rows.forEach(r => {
-    html += "<tr>";
-    cols.forEach(c => html += "<td>" + escapeHtml(r[c]) + "</td>");
-    html += "</tr>";
-  });
-
-  html += "</tbody></table>";
-  document.getElementById("table").innerHTML = html;
-}
-
-function escapeHtml(v){
-  return String(v ?? "").replace(/[&<>'"]/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"
-  }[c]));
-}
-
-function baixarJSON(){
-  if(!dados.length){ alert("Carregue dados primeiro."); return; }
-  download(
-    JSON.stringify(dados, null, 2),
-    nomeArquivo("json"),
-    "application/json"
-  );
-}
-
-function baixarCSV(){
-  if(!dados.length){ alert("Carregue dados primeiro."); return; }
-
-  const cols = Object.keys(dados[0]);
-  const csv = [
-    cols.join(";"),
-    ...dados.map(r => cols.map(c => csvCell(r[c])).join(";"))
-  ].join("\n");
-
-  download(csv, nomeArquivo("csv"), "text/csv;charset=utf-8");
-}
-
-function csvCell(v){
-  const s = String(v ?? "");
-  return '"' + s.replace(/"/g, '""') + '"';
-}
-
-function nomeArquivo(ext){
-  const endpoint = document.getElementById("endpoint").value;
-  const ano = document.getElementById("ano").value;
-  return `bcb_${endpoint}_${ano}.${ext}`;
-}
-
-function download(content, filename, type){
-  const blob = new Blob([content], {type});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 </script>
-
-</body>
-</html>
