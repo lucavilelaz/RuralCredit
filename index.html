@@ -544,7 +544,7 @@ const API_ENDPOINTS = {
     resource: 'CusteioInvestimentoComercialIndustrialSemFiltros',
     title: 'Contratos por município',
     select: 'Municipio,nomeUF,AnoEmissao,MesEmissao,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao',
-    pageSize: 500,
+    pageSize: 100,
     cols: ['Município','UF','Contratos','Valor total (R$ mi)'],
     row: r => [r.Municipio, r.nomeUF, intBR(totalQtd(r)), moneyMi(totalValor(r))]
   },
@@ -552,7 +552,7 @@ const API_ENDPOINTS = {
     resource: 'FonteRecursos',
     title: 'Contratos por fonte de recursos',
     select: 'nomeFonteRecurso,AnoEmissao,MesEmissao,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao',
-    pageSize: 500,
+    pageSize: 100,
     cols: ['Fonte de recursos','Contratos','Valor total (R$ mi)'],
     row: r => [r.nomeFonteRecurso, intBR(totalQtd(r)), moneyMi(totalValor(r))]
   },
@@ -560,7 +560,7 @@ const API_ENDPOINTS = {
     resource: 'ProgramaSubprograma',
     title: 'Contratos por programa e subprograma',
     select: 'nomePrograma,nomeSubPrograma,AnoEmissao,MesEmissao,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao',
-    pageSize: 500,
+    pageSize: 100,
     cols: ['Programa','Subprograma','Contratos','Valor total (R$ mi)'],
     row: r => [r.nomePrograma, r.nomeSubPrograma, intBR(totalQtd(r)), moneyMi(totalValor(r))]
   },
@@ -568,7 +568,7 @@ const API_ENDPOINTS = {
     resource: 'CusteioMunicipioProduto',
     title: 'Custeio por município e produto',
     select: 'nomeProduto,Municipio,AnoEmissao,MesEmissao,VlCusteio,AreaCusteio',
-    pageSize: 500,
+    pageSize: 100,
     cols: ['Produto','Município','Área','Valor custeio (R$ mi)'],
     row: r => [r.nomeProduto, r.Municipio, intBR(r.AreaCusteio), moneyMi(r.VlCusteio)]
   },
@@ -576,7 +576,7 @@ const API_ENDPOINTS = {
     resource: 'RegiaoUFGenero',
     title: 'Contratos por região, UF e gênero',
     select: 'cdSexo,nomeRegiao,nomeUF,AnoEmissao,MesEmissao,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao',
-    pageSize: 500,
+    pageSize: 100,
     cols: ['UF','Região','Gênero','Contratos','Valor total (R$ mi)'],
     row: r => [r.nomeUF, r.nomeRegiao, r.cdSexo, intBR(totalQtd(r)), moneyMi(totalValor(r))]
   },
@@ -584,7 +584,7 @@ const API_ENDPOINTS = {
     resource: 'SegmentoTipoPessoa',
     title: 'Contratos por tipo de pessoa, segmento e IF',
     select: 'Categoria,nomeSegmento,nomeIF,AnoEmissao,MesEmissao,QtdCusteio,VlCusteio,QtdInvestimento,VlInvestimento,QtdComercializacao,VlComercializacao,QtdIndustrializacao,VlIndustrializacao',
-    pageSize: 500,
+    pageSize: 100,
     cols: ['Tipo pessoa','Segmento','Instituição financeira','Contratos','Valor total (R$ mi)'],
     row: r => [r.Categoria, r.nomeSegmento, r.nomeIF, intBR(totalQtd(r)), moneyMi(totalValor(r))]
   },
@@ -592,13 +592,13 @@ const API_ENDPOINTS = {
     resource: 'Faixa',
     title: 'Distribuição por faixa de valor',
     select: 'faixa,AnoEmissao,MesEmissao,Quantidade,Valor,ValorMedio',
-    pageSize: 500,
+    pageSize: 100,
     cols: ['Faixa','Contratos','Valor total (R$ mi)','Valor médio (R$)'],
     row: r => [r.faixa, intBR(r.Quantidade), moneyMi(r.Valor), n(r.ValorMedio).toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0})]
   }
 };
 
-async function fetchJsonWithRetry(url, retries = 3) {
+async function fetchJsonWithRetry(url, retries = 4) {
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -608,14 +608,58 @@ async function fetchJsonWithRetry(url, retries = 3) {
       try { json = text ? JSON.parse(text) : {}; }
       catch { json = { raw: text }; }
       if (!res.ok) {
-        const msg = json?.response || json?.error || json?.detail || text || `HTTP ${res.status}`;
-        throw new Error(`HTTP ${res.status} · ${url}\n${String(msg).slice(0, 800)}`);
+        const msg = json?.response || json?.error || json?.detail || json?.mensagem || text || `HTTP ${res.status}`;
+        throw new Error(`HTTP ${res.status} · ${url}\n${String(msg).slice(0, 1000)}`);
       }
       return json;
     } catch (err) {
       lastErr = err;
       if (attempt === retries) break;
-      await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+      // backoff maior porque a API do BCB às vezes responde 500/timeout de forma intermitente
+      await new Promise(r => setTimeout(r, 1200 * (attempt + 1)));
+    }
+  }
+  throw lastErr;
+}
+
+function buildODataUrl(ep, opts) {
+  const params = {
+    $top: opts.pageSize,
+    $skip: opts.skip,
+    $filter: opts.filter
+  };
+  if (opts.withSelect && ep.select) params.$select = ep.select;
+  return odataUrl(ep.resource, params);
+}
+
+async function fetchPageRobusta(ep, {year, skip, pageSize}) {
+  // Alguns recursos do OLINDA/BCB devolvem 500 mesmo com sintaxe válida.
+  // Para não perder dados, a consulta tenta variações conservadoras antes de desistir:
+  // 1) com $select e AnoEmissao como texto; 2) com $select e ano numérico;
+  // 3) sem $select; 4) páginas menores.
+  const pageSizes = [...new Set([pageSize, 50, 25, 10].filter(x => x > 0 && x <= pageSize))];
+  const filters = [
+    `AnoEmissao eq '${year}'`,
+    `AnoEmissao eq ${year}`
+  ];
+  const selectModes = [true, false];
+  let lastErr;
+
+  for (const ps of pageSizes) {
+    // Ajusta o skip proporcionalmente só quando diminuímos a página no meio.
+    // Ex.: skip 100 com página 50 continua correto; a próxima chamada incrementa pelo ps usado.
+    if (skip % ps !== 0) continue;
+    for (const filter of filters) {
+      for (const withSelect of selectModes) {
+        const url = buildODataUrl(ep, {year, skip, pageSize: ps, filter, withSelect});
+        try {
+          const json = await fetchJsonWithRetry(url, 4);
+          const rows = json.value || json['@odata.value'] || json.data || [];
+          return { rows, url, pageSizeUsed: ps, filterUsed: filter, withSelect };
+        } catch (err) {
+          lastErr = err;
+        }
+      }
     }
   }
   throw lastErr;
@@ -624,27 +668,21 @@ async function fetchJsonWithRetry(url, retries = 3) {
 async function fetchBCB(ep, onProgress = () => {}) {
   // Busca 100% dos registros via paginação OData: $top + $skip.
   // Não há limite total: cada ano é percorrido até a API devolver menos registros do que a página.
-  // Mantemos AnoEmissao eq 'AAAA' porque AnoEmissao é texto na MDCR v2.
+  // Se o BCB falhar com HTTP 500, reduzimos o tamanho da página e tentamos sem $select.
   const years = selectedYears();
   const allRows = [];
   const urls = [];
-  const pageSize = ep.pageSize || 500;
+  const basePageSize = ep.pageSize || 100;
   let totalPages = 0;
+  let fallbackCount = 0;
 
   for (let yi = 0; yi < years.length; yi++) {
     const year = years[yi];
     let skip = 0;
     let page = 0;
+    let activePageSize = basePageSize;
 
     while (true) {
-      const url = odataUrl(ep.resource, {
-        $top: pageSize,
-        $skip: skip,
-        $select: ep.select,
-        $filter: `AnoEmissao eq '${year}'`
-      });
-      if (!urls.length) urls.push(url);
-
       onProgress({
         year,
         yearIndex: yi + 1,
@@ -652,26 +690,31 @@ async function fetchBCB(ep, onProgress = () => {}) {
         page: page + 1,
         rows: allRows.length,
         skip,
-        pageSize
+        pageSize: activePageSize
       });
 
-      const json = await fetchJsonWithRetry(url, 3);
-      const rows = json.value || json['@odata.value'] || json.data || [];
-      allRows.push(...rows);
+      const result = await fetchPageRobusta(ep, {year, skip, pageSize: activePageSize});
+      if (!urls.length) urls.push(result.url);
+      if (result.pageSizeUsed !== activePageSize || !result.withSelect || result.filterUsed !== `AnoEmissao eq '${year}'`) {
+        fallbackCount++;
+        activePageSize = result.pageSizeUsed;
+      }
+
+      allRows.push(...result.rows);
       totalPages++;
 
       // Fim real da paginação: última página veio incompleta.
-      if (rows.length < pageSize) break;
+      if (result.rows.length < result.pageSizeUsed) break;
 
-      skip += pageSize;
+      skip += result.pageSizeUsed;
       page++;
 
-      // Pequena pausa para não martelar a API do BCB/Vercel e reduzir 500 intermitente.
-      await new Promise(r => setTimeout(r, 120));
+      // Pausa para não martelar BCB/Vercel.
+      await new Promise(r => setTimeout(r, 180));
     }
   }
 
-  return { rows: allRows, url: urls[0], urls, totalPages, pageSize, complete: true };
+  return { rows: allRows, url: urls[0], urls, totalPages, pageSize: basePageSize, complete: true, fallbackCount };
 }
 
 async function loadApiData(tab) {
